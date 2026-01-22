@@ -1,0 +1,63 @@
+{
+  "nav": {
+    "home": "Home",
+    "calendar": "Calendar",
+    "settings": "Settings"
+  },
+  "home": {
+    "title": "Pomodoro Timer",
+    "start": "Start",
+    "pause": "Pause",
+    "resume": "Resume",
+    "reset": "Reset",
+    "focus": "Focus",
+    "shortBreak": "Short Break",
+    "longBreak": "Long Break",
+    "cycle": "Cycle {current} of {total}",
+    "config": {
+      "title": "Timer Configuration",
+      "focusMinutes": "Focus Duration (min)",
+      "shortBreakMinutes": "Short Break (min)",
+      "longBreakMinutes": "Long Break (min)",
+      "cyclesBeforeLongBreak": "Cycles before Long Break",
+      "save": "Save"
+    },
+    "notifications": {
+      "focusComplete": "Focus time complete! Time for a break.",
+      "breakComplete": "Break time over! Ready to focus again.",
+      "longBreakComplete": "Long break complete! Start a new session."
+    }
+  },
+  "calendar": {
+    "title": "Daily Plan",
+    "add": "Add Task",
+    "empty": "No tasks for this day",
+    "done": "Completed",
+    "delete": "Delete",
+    "edit": "Edit",
+    "date": "Date",
+    "pomodorosToday": "Pomodoros today: {count}",
+    "form": {
+      "title": "Task",
+      "placeholder": "Enter task description...",
+      "save": "Save",
+      "cancel": "Cancel"
+    }
+  },
+  "settings": {
+    "title": "Settings",
+    "language": "Language",
+    "sound": "Sound",
+    "vibration": "Vibration",
+    "theme": "Theme",
+    "themeLight": "Light",
+    "themeDark": "Dark",
+    "themeSystem": "System",
+    "resetData": "Reset All Data",
+    "version": "Version",
+    "resetConfirm": "Are you sure you want to reset all data? This action cannot be undone.",
+    "resetSuccess": "All data has been reset",
+    "cancel": "Cancel",
+    "confirm": "Confirm"
+  }
+}

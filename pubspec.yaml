@@ -1,0 +1,41 @@
+name: pomodoro_timer
+description: A simple and minimalist Pomodoro Timer app for students and workers
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.0.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  
+  # State management
+  provider: ^6.1.1
+  
+  # Local storage
+  shared_preferences: ^2.5.4
+  
+  # Notifications
+  flutter_local_notifications: ^19.0.0
+  
+  # Vibration
+  vibration: ^3.0.0
+  
+  # Calendar
+  table_calendar: ^3.0.9
+  
+  # Icon
+  cupertino_icons: ^1.0.6
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^3.0.1
+
+flutter:
+  uses-material-design: true
+  
+  # i18n JSON files
+  assets:
+    - assets/l10n/

@@ -1,0 +1,63 @@
+{
+  "nav": {
+    "home": "Início",
+    "calendar": "Calendário",
+    "settings": "Configurações"
+  },
+  "home": {
+    "title": "Temporizador Pomodoro",
+    "start": "Iniciar",
+    "pause": "Pausar",
+    "resume": "Retomar",
+    "reset": "Reiniciar",
+    "focus": "Foco",
+    "shortBreak": "Pausa Curta",
+    "longBreak": "Pausa Longa",
+    "cycle": "Ciclo {current} de {total}",
+    "config": {
+      "title": "Configuração do Temporizador",
+      "focusMinutes": "Duração do Foco (min)",
+      "shortBreakMinutes": "Pausa Curta (min)",
+      "longBreakMinutes": "Pausa Longa (min)",
+      "cyclesBeforeLongBreak": "Ciclos antes da Pausa Longa",
+      "save": "Salvar"
+    },
+    "notifications": {
+      "focusComplete": "Tempo de foco completo! Hora de uma pausa.",
+      "breakComplete": "Pausa terminada! Pronto para focar novamente.",
+      "longBreakComplete": "Pausa longa completa! Inicie uma nova sessão."
+    }
+  },
+  "calendar": {
+    "title": "Plano Diário",
+    "add": "Adicionar Tarefa",
+    "empty": "Sem tarefas para este dia",
+    "done": "Concluída",
+    "delete": "Excluir",
+    "edit": "Editar",
+    "date": "Data",
+    "pomodorosToday": "Pomodoros hoje: {count}",
+    "form": {
+      "title": "Tarefa",
+      "placeholder": "Digite a descrição da tarefa...",
+      "save": "Salvar",
+      "cancel": "Cancelar"
+    }
+  },
+  "settings": {
+    "title": "Configurações",
+    "language": "Idioma",
+    "sound": "Som",
+    "vibration": "Vibração",
+    "theme": "Tema",
+    "themeLight": "Claro",
+    "themeDark": "Escuro",
+    "themeSystem": "Sistema",
+    "resetData": "Redefinir Todos os Dados",
+    "version": "Versão",
+    "resetConfirm": "Tem certeza de que deseja redefinir todos os dados? Esta ação não pode ser desfeita.",
+    "resetSuccess": "Todos os dados foram redefinidos",
+    "cancel": "Cancelar",
+    "confirm": "Confirmar"
+  }
+}
