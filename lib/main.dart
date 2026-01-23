@@ -49,6 +49,8 @@ class _MyAppState extends State<MyApp> {
   Widget build(BuildContext context) {
     final storage = context.watch<StorageService>();
     final themeMode = storage.getThemeMode();
+    final paletteId = storage.getColorPalette();
+    final palette = AppPalettes.getById(paletteId);
 
     ThemeMode selectedThemeMode;
     switch (themeMode) {
@@ -65,8 +67,8 @@ class _MyAppState extends State<MyApp> {
     return MaterialApp(
       title: 'Pomodoro Timer',
       debugShowCheckedModeBanner: false,
-      theme: AppTheme.lightTheme,
-      darkTheme: AppTheme.darkTheme,
+      theme: AppTheme.getLightTheme(palette),
+      darkTheme: AppTheme.getDarkTheme(palette),
       themeMode: selectedThemeMode,
       home: const MainNavigator(),
     );

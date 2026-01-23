@@ -4,6 +4,7 @@ import 'package:device_info_plus/device_info_plus.dart';
 import 'dart:io';
 import '../services/storage_service.dart';
 import '../services/localization_service.dart';
+import '../config/theme.dart';
 
 // Settings screen
 class SettingsScreen extends StatefulWidget {
@@ -78,21 +79,24 @@ class _SettingsScreenState extends State<SettingsScreen> {
             context,
             title: localization.t('settings.language'),
             icon: Icons.language,
-            child: DropdownButton<String>(
-              value: localization.locale.languageCode,
-              isExpanded: true,
-              underline: const SizedBox(),
-              items: const [
-                DropdownMenuItem(value: 'en', child: Text('English')),
-                DropdownMenuItem(value: 'es', child: Text('Español')),
-                DropdownMenuItem(value: 'pt', child: Text('Português')),
-              ],
-              onChanged: (value) async {
-                if (value != null) {
-                  await localization.setLanguage(value);
-                  await storage.saveLanguage(value);
-                }
-              },
+            child: SizedBox(
+              width: 120,
+              child: DropdownButton<String>(
+                value: localization.locale.languageCode,
+                isExpanded: true,
+                underline: const SizedBox(),
+                items: const [
+                  DropdownMenuItem(value: 'en', child: Text('English')),
+                  DropdownMenuItem(value: 'es', child: Text('Español')),
+                  DropdownMenuItem(value: 'pt', child: Text('Português')),
+                ],
+                onChanged: (value) async {
+                  if (value != null) {
+                    await localization.setLanguage(value);
+                    await storage.saveLanguage(value);
+                  }
+                },
+              ),
             ),
           ),
           const SizedBox(height: 12),
@@ -102,32 +106,39 @@ class _SettingsScreenState extends State<SettingsScreen> {
             context,
             title: localization.t('settings.theme'),
             icon: Icons.palette_outlined,
-            child: DropdownButton<String>(
-              value: storage.getThemeMode(),
-              isExpanded: true,
-              underline: const SizedBox(),
-              items: [
-                DropdownMenuItem(
-                  value: 'system',
-                  child: Text(localization.t('settings.themeSystem')),
-                ),
-                DropdownMenuItem(
-                  value: 'light',
-                  child: Text(localization.t('settings.themeLight')),
-                ),
-                DropdownMenuItem(
-                  value: 'dark',
-                  child: Text(localization.t('settings.themeDark')),
-                ),
-              ],
-              onChanged: (value) async {
-                if (value != null) {
-                  await storage.setThemeMode(value);
-                  setState(() {});
-                }
-              },
+            child: SizedBox(
+              width: 120,
+              child: DropdownButton<String>(
+                value: storage.getThemeMode(),
+                isExpanded: true,
+                underline: const SizedBox(),
+                items: [
+                  DropdownMenuItem(
+                    value: 'system',
+                    child: Text(localization.t('settings.themeSystem')),
+                  ),
+                  DropdownMenuItem(
+                    value: 'light',
+                    child: Text(localization.t('settings.themeLight')),
+                  ),
+                  DropdownMenuItem(
+                    value: 'dark',
+                    child: Text(localization.t('settings.themeDark')),
+                  ),
+                ],
+                onChanged: (value) async {
+                  if (value != null) {
+                    await storage.setThemeMode(value);
+                    setState(() {});
+                  }
+                },
+              ),
             ),
           ),
+          const SizedBox(height: 12),
+
+          // Color Palette
+          _buildColorPaletteSelector(context, storage),
           const SizedBox(height: 12),
 
           // Sound
@@ -335,6 +346,107 @@ class _SettingsScreenState extends State<SettingsScreen> {
               ),
             ),
             child,
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildColorPaletteSelector(
+      BuildContext context, StorageService storage) {
+    final currentPalette = storage.getColorPalette();
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                const Icon(Icons.color_lens_outlined),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Text(
+                    'Paleta de Colores',
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            Wrap(
+              spacing: 12,
+              runSpacing: 12,
+              children: AppPalettes.all.map((palette) {
+                final isSelected = currentPalette == palette.id;
+                return GestureDetector(
+                  onTap: () async {
+                    await storage.setColorPalette(palette.id);
+                    setState(() {});
+                  },
+                  child: Container(
+                    width: 90,
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: palette.lightSurface,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: isSelected
+                            ? palette.lightAccent
+                            : Colors.grey.shade300,
+                        width: isSelected ? 3 : 1,
+                      ),
+                    ),
+                    child: Column(
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Container(
+                              width: 20,
+                              height: 20,
+                              decoration: BoxDecoration(
+                                color: palette.lightAccent,
+                                shape: BoxShape.circle,
+                              ),
+                            ),
+                            const SizedBox(width: 4),
+                            Container(
+                              width: 20,
+                              height: 20,
+                              decoration: BoxDecoration(
+                                color: palette.lightAccentSecondary,
+                                shape: BoxShape.circle,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          palette.name,
+                          style:
+                              Theme.of(context).textTheme.bodySmall?.copyWith(
+                                    fontWeight: isSelected
+                                        ? FontWeight.bold
+                                        : FontWeight.normal,
+                                  ),
+                          textAlign: TextAlign.center,
+                        ),
+                        if (isSelected) ...[
+                          const SizedBox(height: 4),
+                          Icon(
+                            Icons.check_circle,
+                            size: 16,
+                            color: palette.lightAccent,
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                );
+              }).toList(),
+            ),
           ],
         ),
       ),

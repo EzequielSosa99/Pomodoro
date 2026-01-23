@@ -13,6 +13,7 @@ class StorageService {
   static const String _soundKey = 'sound_enabled';
   static const String _vibrationKey = 'vibration_enabled';
   static const String _themeKey = 'theme_mode';
+  static const String _colorPaletteKey = 'color_palette';
   static const String _pomodorosCountKey = 'pomodoros_count_';
 
   final SharedPreferences _prefs;
@@ -98,6 +99,12 @@ class StorageService {
   }
 
   String getThemeMode() => _prefs.getString(_themeKey) ?? 'system';
+
+  Future<void> setColorPalette(String paletteId) async {
+    await _prefs.setString(_colorPaletteKey, paletteId);
+  }
+
+  String getColorPalette() => _prefs.getString(_colorPaletteKey) ?? 'lavender';
 
   // Reset all data
   Future<void> resetAll() async {
