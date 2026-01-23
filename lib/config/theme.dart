@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 
 // Color palette definitions
 class ColorPalette {
-  final String name;
   final String id;
   final Color lightAccent;
   final Color lightAccentSecondary;
@@ -12,7 +11,6 @@ class ColorPalette {
   final Color darkAccentSecondary;
 
   const ColorPalette({
-    required this.name,
     required this.id,
     required this.lightAccent,
     required this.lightAccentSecondary,
@@ -26,7 +24,6 @@ class ColorPalette {
 // Available color palettes
 class AppPalettes {
   static const lavender = ColorPalette(
-    name: 'Lavanda',
     id: 'lavender',
     lightAccent: Color(0xFFB4A5D6),
     lightAccentSecondary: Color(0xFFD4B5C9),
@@ -37,7 +34,6 @@ class AppPalettes {
   );
 
   static const mint = ColorPalette(
-    name: 'Menta',
     id: 'mint',
     lightAccent: Color(0xFF9DCDB4),
     lightAccentSecondary: Color(0xFFB4D4C6),
@@ -48,7 +44,6 @@ class AppPalettes {
   );
 
   static const peach = ColorPalette(
-    name: 'Melocotón',
     id: 'peach',
     lightAccent: Color(0xFFFFB4A5),
     lightAccentSecondary: Color(0xFFFFCDB4),
@@ -59,7 +54,6 @@ class AppPalettes {
   );
 
   static const sky = ColorPalette(
-    name: 'Cielo',
     id: 'sky',
     lightAccent: Color(0xFFA5C9E6),
     lightAccentSecondary: Color(0xFFB4D9F0),
@@ -70,7 +64,6 @@ class AppPalettes {
   );
 
   static const rose = ColorPalette(
-    name: 'Rosa',
     id: 'rose',
     lightAccent: Color(0xFFE6A5C9),
     lightAccentSecondary: Color(0xFFF0B4D9),
@@ -81,7 +74,6 @@ class AppPalettes {
   );
 
   static const sage = ColorPalette(
-    name: 'Salvia',
     id: 'sage',
     lightAccent: Color(0xFFB4C9A5),
     lightAccentSecondary: Color(0xFFC6D9B4),
