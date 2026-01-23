@@ -66,7 +66,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
           // Preferencias section
           Text(
-            'PREFERENCIAS',
+            localization.t('settings.preferences'),
             style: Theme.of(context).textTheme.labelLarge?.copyWith(
                   color: Theme.of(context).colorScheme.primary,
                   fontWeight: FontWeight.bold,
@@ -101,44 +101,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
           const SizedBox(height: 12),
 
-          // Theme
-          _buildSettingCard(
-            context,
-            title: localization.t('settings.theme'),
-            icon: Icons.palette_outlined,
-            child: SizedBox(
-              width: 120,
-              child: DropdownButton<String>(
-                value: storage.getThemeMode(),
-                isExpanded: true,
-                underline: const SizedBox(),
-                items: [
-                  DropdownMenuItem(
-                    value: 'system',
-                    child: Text(localization.t('settings.themeSystem')),
-                  ),
-                  DropdownMenuItem(
-                    value: 'light',
-                    child: Text(localization.t('settings.themeLight')),
-                  ),
-                  DropdownMenuItem(
-                    value: 'dark',
-                    child: Text(localization.t('settings.themeDark')),
-                  ),
-                ],
-                onChanged: (value) async {
-                  if (value != null) {
-                    await storage.setThemeMode(value);
-                    setState(() {});
-                  }
-                },
-              ),
-            ),
-          ),
-          const SizedBox(height: 12),
-
-          // Color Palette
-          _buildColorPaletteSelector(context, storage),
+          // Theme (Color Palette)
+          _buildColorPaletteSelector(context, storage, localization),
           const SizedBox(height: 12),
 
           // Sound
@@ -173,7 +137,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
           // Data section
           Text(
-            'DATOS',
+            localization.t('settings.data'),
             style: Theme.of(context).textTheme.labelLarge?.copyWith(
                   color: Theme.of(context).colorScheme.primary,
                   fontWeight: FontWeight.bold,
@@ -184,7 +148,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           // Statistics
           _buildSettingCard(
             context,
-            title: 'Estadísticas',
+            title: localization.t('settings.statistics'),
             icon: Icons.analytics_outlined,
             child: Text(
               '${_getTotalPomodoros(storage)} 🍅',
@@ -210,7 +174,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ),
               ),
               subtitle: Text(
-                'Eliminar todas las tareas y progreso',
+                localization.t('settings.resetDataSubtitle'),
                 style: Theme.of(context).textTheme.bodySmall,
               ),
               onTap: () => _showResetDialog(context),
@@ -220,7 +184,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
           // Info section
           Text(
-            'INFORMACIÓN',
+            localization.t('settings.info'),
             style: Theme.of(context).textTheme.labelLarge?.copyWith(
                   color: Theme.of(context).colorScheme.primary,
                   fontWeight: FontWeight.bold,
@@ -234,8 +198,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
             icon: Icons.info_outline,
             items: [
               _InfoItem('${localization.t('settings.version')}', '1.0.0'),
-              _InfoItem('Desarrollador', 'Pomodoro Timer'),
-              if (_deviceInfo.isNotEmpty) _InfoItem('Dispositivo', _deviceInfo),
+              _InfoItem(localization.t('settings.developer'), 'Pomodoro Timer'),
+              if (_deviceInfo.isNotEmpty)
+                _InfoItem(localization.t('settings.device'), _deviceInfo),
             ],
           ),
           const SizedBox(height: 24),
@@ -261,7 +226,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  'Una app minimalista para mejorar tu productividad',
+                  localization.t('settings.appDescription'),
                   textAlign: TextAlign.center,
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
                         color: Theme.of(context)
@@ -314,7 +279,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    'Personaliza tu experiencia',
+                    localization.t('settings.subtitle'),
                     style: Theme.of(context).textTheme.bodyMedium,
                   ),
                 ],
@@ -352,8 +317,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
-  Widget _buildColorPaletteSelector(
-      BuildContext context, StorageService storage) {
+  Widget _buildColorPaletteSelector(BuildContext context,
+      StorageService storage, LocalizationService localization) {
     final currentPalette = storage.getColorPalette();
 
     return Card(
@@ -368,7 +333,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 const SizedBox(width: 16),
                 Expanded(
                   child: Text(
-                    'Paleta de Colores',
+                    localization.t('settings.theme'),
                     style: Theme.of(context).textTheme.titleMedium,
                   ),
                 ),
@@ -386,7 +351,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     setState(() {});
                   },
                   child: Container(
-                    width: 90,
+                    width: 100,
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
                       color: palette.lightSurface,
@@ -427,11 +392,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           palette.name,
                           style:
                               Theme.of(context).textTheme.bodySmall?.copyWith(
+                                    fontSize: 11,
                                     fontWeight: isSelected
                                         ? FontWeight.bold
                                         : FontWeight.normal,
                                   ),
                           textAlign: TextAlign.center,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
                         ),
                         if (isSelected) ...[
                           const SizedBox(height: 4),

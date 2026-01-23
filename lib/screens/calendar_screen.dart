@@ -4,6 +4,7 @@ import 'package:table_calendar/table_calendar.dart';
 import '../models/task.dart';
 import '../services/storage_service.dart';
 import '../services/localization_service.dart';
+import '../services/ad_service.dart';
 import '../widgets/task_item.dart';
 
 // Calendar screen for daily tasks
@@ -23,6 +24,8 @@ class _CalendarScreenState extends State<CalendarScreen> {
   void initState() {
     super.initState();
     _loadTasks();
+    // Cargar banner del Calendar al iniciar la pantalla
+    Future.microtask(() => AdService.instance.loadCalendarBanner());
   }
 
   void _loadTasks() {
@@ -259,6 +262,9 @@ class _CalendarScreenState extends State<CalendarScreen> {
               ],
             ),
           ),
+
+          // AdMob Banner en la parte inferior
+          AdService.instance.getCalendarBannerWidget(),
         ],
       ),
     );

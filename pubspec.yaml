@@ -25,6 +25,12 @@ dependencies:
   # Calendar
   table_calendar: ^3.0.9
   
+  # Ads
+  google_mobile_ads: ^5.2.0
+  
+  # Device info
+  device_info_plus: ^11.2.0
+  
   # Icon
   cupertino_icons: ^1.0.6
 

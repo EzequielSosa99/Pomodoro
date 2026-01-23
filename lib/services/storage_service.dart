@@ -1,11 +1,12 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/pomodoro_config.dart';
 import '../models/pomodoro_state.dart';
 import '../models/task.dart';
 
 // Storage service for local persistence
-class StorageService {
+class StorageService extends ChangeNotifier {
   static const String _configKey = 'pomodoro_config';
   static const String _stateKey = 'pomodoro_state';
   static const String _tasksKey = 'tasks_';
@@ -96,12 +97,14 @@ class StorageService {
 
   Future<void> setThemeMode(String mode) async {
     await _prefs.setString(_themeKey, mode);
+    notifyListeners();
   }
 
   String getThemeMode() => _prefs.getString(_themeKey) ?? 'system';
 
   Future<void> setColorPalette(String paletteId) async {
     await _prefs.setString(_colorPaletteKey, paletteId);
+    notifyListeners();
   }
 
   String getColorPalette() => _prefs.getString(_colorPaletteKey) ?? 'lavender';

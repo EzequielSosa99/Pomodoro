@@ -6,6 +6,7 @@ import '../models/pomodoro_config.dart';
 import '../models/pomodoro_state.dart';
 import 'storage_service.dart';
 import 'localization_service.dart';
+import 'ad_service.dart';
 
 // Pomodoro timer service
 class PomodoroService extends ChangeNotifier {
@@ -118,14 +119,29 @@ class PomodoroService extends ChangeNotifier {
   Future<void> _onTimerComplete() async {
     _timer?.cancel();
 
+    // Guardar el modo actual antes de cambiar (para el interstitial)
+    final completedMode = _state.mode;
+
     // Play notification and vibration
     await _showNotification();
     await _playVibration();
 
+    // Mostrar interstitial y LUEGO cambiar a la siguiente fase
+    // El callback onClosed se ejecutará cuando el usuario cierre el anuncio o si no se pudo mostrar
+    await AdService.instance.showInterstitialIfReady(
+      onClosed: () {
+        // Este callback se ejecuta DESPUÉS de que el anuncio se cierra o falla
+        _proceedToNextPhase(completedMode);
+      },
+    );
+  }
+
+  // Avanzar a la siguiente fase del pomodoro
+  void _proceedToNextPhase(PomodoroMode completedMode) {
     // Determine next mode
-    if (_state.mode == PomodoroMode.focus) {
+    if (completedMode == PomodoroMode.focus) {
       // Increment pomodoros count
-      await _storage.incrementPomodorosCount(DateTime.now());
+      _storage.incrementPomodorosCount(DateTime.now());
 
       // Check if it's time for long break
       if (_state.currentCycle >= _config.cyclesBeforeLongBreak) {
@@ -145,7 +161,7 @@ class PomodoroService extends ChangeNotifier {
     } else {
       // After any break, go back to focus
       final nextCycle =
-          _state.mode == PomodoroMode.longBreak ? 1 : _state.currentCycle + 1;
+          completedMode == PomodoroMode.longBreak ? 1 : _state.currentCycle + 1;
 
       _state = PomodoroState(
         mode: PomodoroMode.focus,

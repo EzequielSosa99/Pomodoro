@@ -5,6 +5,7 @@ import 'config/theme.dart';
 import 'services/storage_service.dart';
 import 'services/localization_service.dart';
 import 'services/pomodoro_service.dart';
+import 'services/ad_service.dart';
 import 'screens/home_screen.dart';
 import 'screens/calendar_screen.dart';
 import 'screens/settings_screen.dart';
@@ -20,10 +21,13 @@ void main() async {
 
   final notifications = FlutterLocalNotificationsPlugin();
 
+  // Initialize AdMob
+  await AdService.instance.init();
+
   runApp(
     MultiProvider(
       providers: [
-        Provider<StorageService>.value(value: storage),
+        ChangeNotifierProvider<StorageService>.value(value: storage),
         ChangeNotifierProvider<LocalizationService>.value(value: localization),
         ChangeNotifierProxyProvider<LocalizationService, PomodoroService>(
           create: (context) =>

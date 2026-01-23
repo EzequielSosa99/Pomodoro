@@ -3,12 +3,31 @@ import 'package:provider/provider.dart';
 import '../models/pomodoro_state.dart';
 import '../services/pomodoro_service.dart';
 import '../services/localization_service.dart';
+import '../services/ad_service.dart';
 import '../widgets/timer_display.dart';
 import '../widgets/config_sheet.dart';
 
 // Home screen with Pomodoro timer
-class HomeScreen extends StatelessWidget {
+class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
+
+  @override
+  State<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends State<HomeScreen> {
+  @override
+  void initState() {
+    super.initState();
+    // Cargar banner del Home al iniciar la pantalla
+    Future.microtask(() => AdService.instance.loadHomeBanner());
+  }
+
+  @override
+  void dispose() {
+    // No necesitamos disponer aquí porque el servicio es singleton
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -82,7 +101,7 @@ class HomeScreen extends StatelessWidget {
                             ),
                             const SizedBox(width: 12),
                             Text(
-                              'Pomodoro',
+                              localization.t('home.title'),
                               style: Theme.of(context)
                                   .textTheme
                                   .headlineSmall
@@ -95,7 +114,7 @@ class HomeScreen extends StatelessWidget {
                         ),
                         const SizedBox(height: 4),
                         Text(
-                          'Mantén tu enfoque',
+                          localization.t('home.subtitle'),
                           style:
                               Theme.of(context).textTheme.bodyMedium?.copyWith(
                                     color: Theme.of(context)
@@ -270,6 +289,9 @@ class HomeScreen extends StatelessWidget {
                   ),
                 ),
               ),
+
+              // AdMob Banner en la parte inferior
+              AdService.instance.getHomeBannerWidget(),
             ],
           ),
         ),
@@ -279,144 +301,101 @@ class HomeScreen extends StatelessWidget {
 
   Widget _buildControlButtons(BuildContext context, PomodoroState state,
       PomodoroService service, LocalizationService localization) {
-    if (state.status == TimerStatus.idle) {
-      return _buildStartButton(context, service, localization);
-    } else if (state.status == TimerStatus.running) {
-      return Column(
-        children: [
-          _buildPauseButton(context, service, localization),
-          const SizedBox(height: 12),
-          _buildResetButton(context, service, localization),
-        ],
-      );
-    } else {
-      // Paused
-      return Column(
-        children: [
-          _buildResumeButton(context, service, localization),
-          const SizedBox(height: 12),
-          _buildResetButton(context, service, localization),
-        ],
-      );
-    }
-  }
+    final modeColor = _getModeColor(state.mode, context);
+    final isIdle = state.status == TimerStatus.idle;
+    final isRunning = state.status == TimerStatus.running;
+    final isPaused = state.status == TimerStatus.paused;
 
-  Widget _buildStartButton(BuildContext context, PomodoroService service,
-      LocalizationService localization) {
-    return ElevatedButton(
-      onPressed: () => service.start(),
-      style: ElevatedButton.styleFrom(
-        padding: const EdgeInsets.symmetric(horizontal: 64, vertical: 20),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(20),
-        ),
-        elevation: 4,
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const Icon(Icons.play_arrow_rounded, size: 28),
-          const SizedBox(width: 8),
-          Text(
-            localization.t('home.start'),
-            style: const TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.w600,
-              letterSpacing: 0.5,
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        // Botón principal (Start/Pause/Resume)
+        Expanded(
+          flex: 2,
+          child: ElevatedButton(
+            onPressed: isIdle
+                ? () => service.start()
+                : isRunning
+                    ? () => service.pause()
+                    : () => service.start(),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: modeColor,
+              padding: const EdgeInsets.symmetric(vertical: 20),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(20),
+              ),
+              elevation: 4,
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  isIdle || isPaused
+                      ? Icons.play_arrow_rounded
+                      : Icons.pause_rounded,
+                  size: 28,
+                  color: Colors.white,
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  isIdle
+                      ? localization.t('home.start')
+                      : isRunning
+                          ? localization.t('home.pause')
+                          : localization.t('home.resume'),
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w600,
+                    letterSpacing: 0.5,
+                    color: Colors.white,
+                  ),
+                ),
+              ],
             ),
           ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildPauseButton(BuildContext context, PomodoroService service,
-      LocalizationService localization) {
-    return ElevatedButton(
-      onPressed: () => service.pause(),
-      style: ElevatedButton.styleFrom(
-        padding: const EdgeInsets.symmetric(horizontal: 64, vertical: 20),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(20),
         ),
-        elevation: 4,
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const Icon(Icons.pause_rounded, size: 28),
-          const SizedBox(width: 8),
-          Text(
-            localization.t('home.pause'),
-            style: const TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.w600,
-              letterSpacing: 0.5,
+        const SizedBox(width: 12),
+        // Botón Reset
+        Expanded(
+          flex: 1,
+          child: OutlinedButton(
+            onPressed: isIdle ? null : () => service.reset(),
+            style: OutlinedButton.styleFrom(
+              padding: const EdgeInsets.symmetric(vertical: 20),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
+              side: BorderSide(
+                color: isIdle
+                    ? Colors.grey.withOpacity(0.3)
+                    : modeColor.withOpacity(0.5),
+                width: 2,
+              ),
+              disabledForegroundColor: Colors.grey.withOpacity(0.3),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  Icons.refresh_rounded,
+                  size: 24,
+                  color: isIdle ? Colors.grey : modeColor,
+                ),
+                const SizedBox(width: 4),
+                Text(
+                  localization.t('home.reset'),
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    letterSpacing: 0.5,
+                    color: isIdle ? Colors.grey : modeColor,
+                  ),
+                ),
+              ],
             ),
           ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildResumeButton(BuildContext context, PomodoroService service,
-      LocalizationService localization) {
-    return ElevatedButton(
-      onPressed: () => service.start(),
-      style: ElevatedButton.styleFrom(
-        padding: const EdgeInsets.symmetric(horizontal: 64, vertical: 20),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(20),
         ),
-        elevation: 4,
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const Icon(Icons.play_arrow_rounded, size: 28),
-          const SizedBox(width: 8),
-          Text(
-            localization.t('home.resume'),
-            style: const TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.w600,
-              letterSpacing: 0.5,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildResetButton(BuildContext context, PomodoroService service,
-      LocalizationService localization) {
-    return OutlinedButton(
-      onPressed: () => service.reset(),
-      style: OutlinedButton.styleFrom(
-        padding: const EdgeInsets.symmetric(horizontal: 48, vertical: 16),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-        ),
-        side: BorderSide(
-          color: Theme.of(context).colorScheme.primary.withOpacity(0.3),
-          width: 2,
-        ),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const Icon(Icons.refresh_rounded, size: 24),
-          const SizedBox(width: 8),
-          Text(
-            localization.t('home.reset'),
-            style: const TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w600,
-              letterSpacing: 0.5,
-            ),
-          ),
-        ],
-      ),
+      ],
     );
   }
 
@@ -425,9 +404,9 @@ class HomeScreen extends StatelessWidget {
       case PomodoroMode.focus:
         return Theme.of(context).colorScheme.primary;
       case PomodoroMode.shortBreak:
-        return const Color(0xFF22C55E); // Success color
+        return const Color(0xFFA8D5BA); // Success pastel green
       case PomodoroMode.longBreak:
-        return const Color(0xFF3B82F6); // Light blue
+        return const Color(0xFFA8CCD5); // Tertiary pastel blue
     }
   }
 }
