@@ -36,6 +36,9 @@ class _HomeScreenState extends State<HomeScreen> {
     final state = pomodoroService.state;
     final config = pomodoroService.config;
 
+    // Escuchar cambios en AdService para actualizar cuando el banner esté listo
+    context.watch<AdService>();
+
     String getModeText() {
       switch (state.mode) {
         case PomodoroMode.focus:

@@ -137,6 +137,9 @@ class _CalendarScreenState extends State<CalendarScreen> {
     final storage = context.watch<StorageService>();
     final pomodorosCount = storage.getPomodorosCount(_selectedDate);
 
+    // Escuchar cambios en AdService para actualizar cuando el banner esté listo
+    context.watch<AdService>();
+
     return Scaffold(
       appBar: AppBar(
         title: Text(localization.t('calendar.title')),
@@ -145,46 +148,49 @@ class _CalendarScreenState extends State<CalendarScreen> {
       ),
       body: Column(
         children: [
-          // Calendar - Primera mitad de la pantalla
+          // Calendar - Más espacio para evitar que se corte la última fila
           Expanded(
-            flex: 1,
+            flex: 5,
             child: Card(
               margin: const EdgeInsets.all(8.0),
-              child: TableCalendar(
-                firstDay: DateTime(2020),
-                lastDay: DateTime(2030),
-                focusedDay: _focusedDate,
-                selectedDayPredicate: (day) => isSameDay(_selectedDate, day),
-                onDaySelected: _onDaySelected,
-                calendarFormat: CalendarFormat.month,
-                startingDayOfWeek: StartingDayOfWeek.monday,
-                calendarStyle: CalendarStyle(
-                  todayDecoration: BoxDecoration(
-                    color:
-                        Theme.of(context).colorScheme.primary.withOpacity(0.5),
-                    shape: BoxShape.circle,
+              child: SingleChildScrollView(
+                child: TableCalendar(
+                  firstDay: DateTime(2020),
+                  lastDay: DateTime(2030),
+                  focusedDay: _focusedDate,
+                  selectedDayPredicate: (day) => isSameDay(_selectedDate, day),
+                  onDaySelected: _onDaySelected,
+                  calendarFormat: CalendarFormat.month,
+                  startingDayOfWeek: StartingDayOfWeek.monday,
+                  calendarStyle: CalendarStyle(
+                    todayDecoration: BoxDecoration(
+                      color: Theme.of(
+                        context,
+                      ).colorScheme.primary.withOpacity(0.5),
+                      shape: BoxShape.circle,
+                    ),
+                    selectedDecoration: BoxDecoration(
+                      color: Theme.of(context).colorScheme.primary,
+                      shape: BoxShape.circle,
+                    ),
+                    markerDecoration: BoxDecoration(
+                      color: Theme.of(context).colorScheme.secondary,
+                      shape: BoxShape.circle,
+                    ),
                   ),
-                  selectedDecoration: BoxDecoration(
-                    color: Theme.of(context).colorScheme.primary,
-                    shape: BoxShape.circle,
+                  headerStyle: HeaderStyle(
+                    formatButtonVisible: false,
+                    titleCentered: true,
+                    titleTextStyle: Theme.of(context).textTheme.titleLarge!,
                   ),
-                  markerDecoration: BoxDecoration(
-                    color: Theme.of(context).colorScheme.secondary,
-                    shape: BoxShape.circle,
-                  ),
-                ),
-                headerStyle: HeaderStyle(
-                  formatButtonVisible: false,
-                  titleCentered: true,
-                  titleTextStyle: Theme.of(context).textTheme.titleLarge!,
                 ),
               ),
             ),
           ),
 
-          // Tasks section - Segunda mitad de la pantalla
+          // Tasks section - Menos espacio, el calendario necesita más
           Expanded(
-            flex: 1,
+            flex: 4,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -203,10 +209,10 @@ class _CalendarScreenState extends State<CalendarScreen> {
                             ),
                             if (pomodorosCount > 0)
                               Text(
-                                localization.t('calendar.pomodorosToday',
-                                    params: {
-                                      'count': pomodorosCount.toString()
-                                    }),
+                                localization.t(
+                                  'calendar.pomodorosToday',
+                                  params: {'count': pomodorosCount.toString()},
+                                ),
                                 style: Theme.of(context).textTheme.bodyMedium,
                               ),
                           ],
@@ -231,10 +237,9 @@ class _CalendarScreenState extends State<CalendarScreen> {
                               Icon(
                                 Icons.task_outlined,
                                 size: 48,
-                                color: Theme.of(context)
-                                    .textTheme
-                                    .bodyMedium
-                                    ?.color,
+                                color: Theme.of(
+                                  context,
+                                ).textTheme.bodyMedium?.color,
                               ),
                               const SizedBox(height: 8),
                               Text(
@@ -246,7 +251,9 @@ class _CalendarScreenState extends State<CalendarScreen> {
                         )
                       : ListView.builder(
                           padding: const EdgeInsets.symmetric(
-                              horizontal: 16, vertical: 8),
+                            horizontal: 16,
+                            vertical: 8,
+                          ),
                           itemCount: _tasks.length,
                           itemBuilder: (context, index) {
                             final task = _tasks[index];

@@ -4,19 +4,21 @@ import 'package:google_mobile_ads/google_mobile_ads.dart';
 
 /// Servicio centralizado para gestionar todos los anuncios de AdMob
 /// Maneja banners (Home y Calendar) e interstitials (fin de bloque del timer)
-class AdService {
+class AdService extends ChangeNotifier {
   AdService._();
   static final AdService instance = AdService._();
 
   // ==================== Ad Unit IDs ====================
 
-  // BANNER - Producción (reemplazar con tus IDs reales de AdMob)
+  // BANNER - IDs de prueba de Google (funcionan siempre)
+  // Cuando tengas tus IDs reales de AdMob, reemplaza estos valores
   static const String _bannerAdUnitId =
-      'ca-app-pub-XXXXXXXXXXXXXXXX/YYYYYYYYYY'; // TODO: Reemplazar con tu Banner Ad Unit ID
+      'ca-app-pub-3940256099942544/6300978111'; // Test ID de Google
 
-  // INTERSTITIAL - Producción (reemplazar con tus IDs reales de AdMob)
+  // INTERSTITIAL - IDs de prueba de Google (funcionan siempre)
+  // Cuando tengas tus IDs reales de AdMob, reemplaza estos valores
   static const String _interstitialAdUnitId =
-      'ca-app-pub-XXXXXXXXXXXXXXXX/YYYYYYYYYY'; // TODO: Reemplazar con tu Interstitial Ad Unit ID
+      'ca-app-pub-3940256099942544/1033173712'; // Test ID de Google
 
   // ==================== Banner Ads ====================
 
@@ -74,13 +76,17 @@ class AdService {
           onAdLoaded: (ad) {
             debugPrint('✅ [AdService] Home banner cargado exitosamente');
             _isHomeBannerLoaded = true;
+            notifyListeners(); // Notificar que el banner está listo
           },
           onAdFailedToLoad: (ad, error) {
             debugPrint(
                 '❌ [AdService] Error al cargar Home banner: ${error.message}');
+            debugPrint('❌ [AdService] Error code: ${error.code}');
+            debugPrint('❌ [AdService] Error domain: ${error.domain}');
             _isHomeBannerLoaded = false;
             ad.dispose();
             _homeBanner = null;
+            notifyListeners();
 
             // Reintentar después de 30 segundos
             Future.delayed(const Duration(seconds: 30), () {
@@ -142,13 +148,17 @@ class AdService {
           onAdLoaded: (ad) {
             debugPrint('✅ [AdService] Calendar banner cargado exitosamente');
             _isCalendarBannerLoaded = true;
+            notifyListeners(); // Notificar que el banner está listo
           },
           onAdFailedToLoad: (ad, error) {
             debugPrint(
                 '❌ [AdService] Error al cargar Calendar banner: ${error.message}');
+            debugPrint('❌ [AdService] Error code: ${error.code}');
+            debugPrint('❌ [AdService] Error domain: ${error.domain}');
             _isCalendarBannerLoaded = false;
             ad.dispose();
             _calendarBanner = null;
+            notifyListeners();
 
             // Reintentar después de 30 segundos
             Future.delayed(const Duration(seconds: 30), () {

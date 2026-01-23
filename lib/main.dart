@@ -29,6 +29,7 @@ void main() async {
       providers: [
         ChangeNotifierProvider<StorageService>.value(value: storage),
         ChangeNotifierProvider<LocalizationService>.value(value: localization),
+        ChangeNotifierProvider<AdService>.value(value: AdService.instance),
         ChangeNotifierProxyProvider<LocalizationService, PomodoroService>(
           create: (context) =>
               PomodoroService(storage, localization, notifications),
