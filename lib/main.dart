@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'dart:ui' as ui;
 import 'config/theme.dart';
 import 'services/storage_service.dart';
 import 'services/localization_service.dart';
@@ -10,12 +11,38 @@ import 'screens/home_screen.dart';
 import 'screens/calendar_screen.dart';
 import 'screens/settings_screen.dart';
 
+/// Detecta el idioma del sistema y retorna un código soportado
+String _detectSystemLanguage() {
+  // Idiomas soportados por la app
+  const supportedLanguages = ['en', 'es', 'pt'];
+
+  // Obtener el idioma del sistema
+  final systemLocale = ui.PlatformDispatcher.instance.locale;
+  final languageCode = systemLocale.languageCode;
+
+  // Si el idioma del sistema está soportado, usarlo
+  if (supportedLanguages.contains(languageCode)) {
+    return languageCode;
+  }
+
+  // Fallback a inglés si el idioma no está soportado
+  return 'en';
+}
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   // Initialize services
   final storage = await StorageService.init();
-  final savedLanguage = storage.loadLanguage() ?? 'en';
+
+  // Detectar idioma: primero intentar cargar el guardado, si no existe usar el del sistema
+  String savedLanguage = storage.loadLanguage() ?? _detectSystemLanguage();
+
+  // Si es la primera vez (no hay idioma guardado), guardar el detectado
+  if (storage.loadLanguage() == null) {
+    await storage.saveLanguage(savedLanguage);
+  }
+
   final localization = LocalizationService(savedLanguage);
   await localization.setLanguage(savedLanguage);
 

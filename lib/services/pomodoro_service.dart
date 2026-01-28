@@ -126,14 +126,21 @@ class PomodoroService extends ChangeNotifier {
     await _showNotification();
     await _playVibration();
 
-    // Mostrar interstitial y LUEGO cambiar a la siguiente fase
-    // El callback onClosed se ejecutará cuando el usuario cierre el anuncio o si no se pudo mostrar
-    await AdService.instance.showInterstitialIfReady(
-      onClosed: () {
-        // Este callback se ejecuta DESPUÉS de que el anuncio se cierra o falla
-        _proceedToNextPhase(completedMode);
-      },
-    );
+    // Mostrar interstitial SOLO al terminar el bloque de focus
+    // En breaks, ir directamente a la siguiente fase
+    if (completedMode == PomodoroMode.focus) {
+      // Mostrar interstitial y LUEGO cambiar a la siguiente fase
+      // El callback onClosed se ejecutará cuando el usuario cierre el anuncio o si no se pudo mostrar
+      await AdService.instance.showInterstitialIfReady(
+        onClosed: () {
+          // Este callback se ejecuta DESPUÉS de que el anuncio se cierra o falla
+          _proceedToNextPhase(completedMode);
+        },
+      );
+    } else {
+      // Si es un break, ir directamente a la siguiente fase sin mostrar anuncio
+      _proceedToNextPhase(completedMode);
+    }
   }
 
   // Avanzar a la siguiente fase del pomodoro
@@ -204,6 +211,9 @@ class PomodoroService extends ChangeNotifier {
       channelDescription: 'Notifications for Pomodoro timer completion',
       importance: Importance.high,
       priority: Priority.high,
+      playSound: true,
+      enableVibration: false, // La vibración se maneja por separado
+      sound: RawResourceAndroidNotificationSound('notification'),
     );
 
     const details = NotificationDetails(android: androidDetails);
@@ -216,7 +226,10 @@ class PomodoroService extends ChangeNotifier {
 
     final hasVibrator = await Vibration.hasVibrator();
     if (hasVibrator == true) {
-      await Vibration.vibrate(duration: 500);
+      // Vibrar 5 veces: 500ms vibración, 200ms pausa
+      await Vibration.vibrate(
+        pattern: [0, 500, 200, 500, 200, 500, 200, 500, 200, 500],
+      );
     }
   }
 
