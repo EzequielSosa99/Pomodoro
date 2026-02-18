@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:flutter_timezone/flutter_timezone.dart';
+import 'package:timezone/data/latest_all.dart' as tz;
+import 'package:timezone/timezone.dart' as tz;
 import 'dart:ui' as ui;
 import 'config/theme.dart';
 import 'services/storage_service.dart';
@@ -29,8 +32,16 @@ String _detectSystemLanguage() {
   return 'en';
 }
 
+Future<void> _configureLocalTimeZone() async {
+  tz.initializeTimeZones();
+  final timeZoneInfo = await FlutterTimezone.getLocalTimezone();
+  tz.setLocalLocation(tz.getLocation(timeZoneInfo.identifier));
+}
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  await _configureLocalTimeZone();
 
   // Initialize services
   final storage = await StorageService.init();
@@ -76,7 +87,26 @@ class MyApp extends StatefulWidget {
   State<MyApp> createState() => _MyAppState();
 }
 
-class _MyAppState extends State<MyApp> {
+class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      context.read<PomodoroService>().syncWithSystemTime();
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final storage = context.watch<StorageService>();

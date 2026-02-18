@@ -1,7 +1,9 @@
 import 'dart:async';
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:vibration/vibration.dart';
+import 'package:timezone/timezone.dart' as tz;
 import '../models/pomodoro_config.dart';
 import '../models/pomodoro_state.dart';
 import 'storage_service.dart';
@@ -21,12 +23,32 @@ class PomodoroService extends ChangeNotifier {
   PomodoroService(this._storage, this._localization, this._notifications)
       : _config = const PomodoroConfig(),
         _state = const PomodoroState() {
-    _loadFromStorage();
-    _initNotifications();
+    _initNotifications().then((_) => _loadFromStorage());
   }
 
   PomodoroConfig get config => _config;
   PomodoroState get state => _state;
+
+  void syncWithSystemTime() {
+    if (_state.status != TimerStatus.running) return;
+
+    if (_state.endTimestampMillis == null) {
+      _state = _state.copyWith(status: TimerStatus.idle);
+      notifyListeners();
+      return;
+    }
+
+    final remaining = _calculateRemainingSeconds();
+    if (remaining <= 0) {
+      _state = _state.copyWith(secondsRemaining: 0, endTimestampMillis: null);
+      _onTimerComplete(notify: false);
+      return;
+    }
+
+    _state = _state.copyWith(secondsRemaining: remaining);
+    _startTicking();
+    notifyListeners();
+  }
 
   // Initialize notifications
   Future<void> _initNotifications() async {
@@ -41,14 +63,35 @@ class PomodoroService extends ChangeNotifier {
     _config = _storage.loadConfig() ?? const PomodoroConfig();
     final savedState = _storage.loadState();
     if (savedState != null) {
-      // Restore state but reset to idle if it was running
-      _state = savedState.copyWith(status: TimerStatus.idle);
+      _state = savedState;
+      _restoreRunningState();
     } else {
       _state = PomodoroState(
         secondsRemaining: _config.focusMinutes * 60,
       );
     }
     notifyListeners();
+  }
+
+  void _restoreRunningState() {
+    if (_state.status != TimerStatus.running) return;
+
+    final endTimestamp = _state.endTimestampMillis;
+    if (endTimestamp == null) {
+      _state = _state.copyWith(status: TimerStatus.idle);
+      return;
+    }
+
+    final remaining = _calculateRemainingSeconds();
+    if (remaining <= 0) {
+      _state = _state.copyWith(secondsRemaining: 0, endTimestampMillis: null);
+      _onTimerComplete(notify: false);
+      return;
+    }
+
+    _state = _state.copyWith(secondsRemaining: remaining);
+    _scheduleCompletionNotification(endTimestamp);
+    _startTicking();
   }
 
   // Update configuration
@@ -75,6 +118,10 @@ class PomodoroService extends ChangeNotifier {
       _state = _state.copyWith(status: TimerStatus.running);
     }
 
+    final endTimestamp = _computeEndTimestampMillis(_state.secondsRemaining);
+    _state = _state.copyWith(endTimestampMillis: endTimestamp);
+    _scheduleCompletionNotification(endTimestamp);
+
     _startTicking();
     _saveState();
     notifyListeners();
@@ -84,7 +131,12 @@ class PomodoroService extends ChangeNotifier {
   void pause() {
     if (_state.status != TimerStatus.running) return;
     _timer?.cancel();
-    _state = _state.copyWith(status: TimerStatus.paused);
+    _state = _state.copyWith(
+      status: TimerStatus.paused,
+      secondsRemaining: _calculateRemainingSeconds(),
+      endTimestampMillis: null,
+    );
+    _cancelScheduledNotification();
     _saveState();
     notifyListeners();
   }
@@ -92,11 +144,13 @@ class PomodoroService extends ChangeNotifier {
   // Reset timer
   void reset() {
     _timer?.cancel();
+    _cancelScheduledNotification();
     _state = PomodoroState(
       mode: PomodoroMode.focus,
       status: TimerStatus.idle,
       currentCycle: 1,
       secondsRemaining: _config.focusMinutes * 60,
+      endTimestampMillis: null,
     );
     _saveState();
     notifyListeners();
@@ -106,41 +160,46 @@ class PomodoroService extends ChangeNotifier {
   void _startTicking() {
     _timer?.cancel();
     _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
-      if (_state.secondsRemaining > 0) {
-        _state = _state.copyWith(secondsRemaining: _state.secondsRemaining - 1);
+      final remaining = _calculateRemainingSeconds();
+      if (remaining > 0) {
+        _state = _state.copyWith(secondsRemaining: remaining);
         notifyListeners();
       } else {
+        _state = _state.copyWith(secondsRemaining: 0, endTimestampMillis: null);
         _onTimerComplete();
       }
     });
   }
 
-  // Handle timer completion
-  Future<void> _onTimerComplete() async {
-    _timer?.cancel();
+  int _computeEndTimestampMillis(int secondsRemaining) {
+    return DateTime.now().millisecondsSinceEpoch + (secondsRemaining * 1000);
+  }
 
-    // Guardar el modo actual antes de cambiar (para el interstitial)
+  int _calculateRemainingSeconds() {
+    final endTimestamp = _state.endTimestampMillis;
+    if (endTimestamp == null) return _state.secondsRemaining;
+
+    final now = DateTime.now().millisecondsSinceEpoch;
+    final diffMillis = endTimestamp - now;
+    return (diffMillis / 1000).ceil();
+  }
+
+  // Handle timer completion
+  Future<void> _onTimerComplete({bool notify = true}) async {
+    _timer?.cancel();
+    _cancelScheduledNotification();
+
+    // Guardar el modo actual antes de cambiar
     final completedMode = _state.mode;
 
     // Play notification and vibration
-    await _showNotification();
-    await _playVibration();
-
-    // Mostrar interstitial SOLO al terminar el bloque de focus
-    // En breaks, ir directamente a la siguiente fase
-    if (completedMode == PomodoroMode.focus) {
-      // Mostrar interstitial y LUEGO cambiar a la siguiente fase
-      // El callback onClosed se ejecutará cuando el usuario cierre el anuncio o si no se pudo mostrar
-      await AdService.instance.showInterstitialIfReady(
-        onClosed: () {
-          // Este callback se ejecuta DESPUÉS de que el anuncio se cierra o falla
-          _proceedToNextPhase(completedMode);
-        },
-      );
-    } else {
-      // Si es un break, ir directamente a la siguiente fase sin mostrar anuncio
-      _proceedToNextPhase(completedMode);
+    if (notify) {
+      await _showNotification();
+      await _playVibration();
     }
+
+    // Ir directamente a la siguiente fase (sin intersticiales por ahora)
+    _proceedToNextPhase(completedMode);
   }
 
   // Avanzar a la siguiente fase del pomodoro
@@ -182,28 +241,78 @@ class PomodoroService extends ChangeNotifier {
     notifyListeners();
   }
 
-  // Show notification
-  Future<void> _showNotification() async {
-    if (!_storage.getSoundEnabled()) return;
-
+  Map<String, String> _getNotificationContent(PomodoroMode mode) {
     String title = '';
     String body = '';
 
-    switch (_state.mode) {
+    switch (mode) {
       case PomodoroMode.focus:
         title = _localization.t('home.focus');
         body = _localization.t('home.notifications.focusComplete');
         break;
       case PomodoroMode.shortBreak:
       case PomodoroMode.longBreak:
-        title = _state.mode == PomodoroMode.shortBreak
+        title = mode == PomodoroMode.shortBreak
             ? _localization.t('home.shortBreak')
             : _localization.t('home.longBreak');
-        body = _state.mode == PomodoroMode.longBreak
+        body = mode == PomodoroMode.longBreak
             ? _localization.t('home.notifications.longBreakComplete')
             : _localization.t('home.notifications.breakComplete');
         break;
     }
+
+    return {'title': title, 'body': body};
+  }
+
+  Future<void> _scheduleCompletionNotification(int endTimestampMillis) async {
+    final soundEnabled = _storage.getSoundEnabled();
+    final vibrationEnabled = _storage.getVibrationEnabled();
+    if (!soundEnabled && !vibrationEnabled) return;
+
+    await _notifications.cancel(0);
+
+    final content = _getNotificationContent(_state.mode);
+
+    final androidDetails = AndroidNotificationDetails(
+      'pomodoro_channel',
+      'Pomodoro Timer',
+      channelDescription: 'Notifications for Pomodoro timer completion',
+      importance: Importance.high,
+      priority: Priority.high,
+      playSound: soundEnabled,
+      enableVibration: vibrationEnabled,
+      sound: soundEnabled
+          ? const RawResourceAndroidNotificationSound('notification')
+          : null,
+      vibrationPattern: vibrationEnabled
+          ? Int64List.fromList([0, 500, 200, 500, 200, 500, 200, 500])
+          : null,
+    );
+
+    final scheduleDate = tz.TZDateTime.fromMillisecondsSinceEpoch(
+      tz.local,
+      endTimestampMillis,
+    );
+
+    await _notifications.zonedSchedule(
+      0,
+      content['title'],
+      content['body'],
+      scheduleDate,
+      NotificationDetails(android: androidDetails),
+      androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+    );
+  }
+
+  void _cancelScheduledNotification() {
+    _notifications.cancel(0);
+  }
+
+  // Show notification
+  Future<void> _showNotification() async {
+    if (!_storage.getSoundEnabled()) return;
+
+    final content = _getNotificationContent(_state.mode);
 
     const androidDetails = AndroidNotificationDetails(
       'pomodoro_channel',
@@ -217,7 +326,7 @@ class PomodoroService extends ChangeNotifier {
     );
 
     const details = NotificationDetails(android: androidDetails);
-    await _notifications.show(0, title, body, details);
+    await _notifications.show(0, content['title'], content['body'], details);
   }
 
   // Play vibration
@@ -253,6 +362,7 @@ class PomodoroService extends ChangeNotifier {
   @override
   void dispose() {
     _timer?.cancel();
+    _cancelScheduledNotification();
     super.dispose();
   }
 }

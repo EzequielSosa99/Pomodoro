@@ -1,7 +1,7 @@
 name: pomodoro_timer
 description: A simple and minimalist Pomodoro Timer app for students and workers
 publish_to: 'none'
-version: 1.0.0+1
+version: 1.0.2+6
 
 environment:
   sdk: '>=3.0.0 <4.0.0'
@@ -18,6 +18,10 @@ dependencies:
   
   # Notifications
   flutter_local_notifications: ^19.0.0
+
+  # Timezone (for scheduled notifications)
+  timezone: ^0.10.1
+  flutter_timezone: ^5.0.1
   
   # Vibration
   vibration: ^3.0.0
