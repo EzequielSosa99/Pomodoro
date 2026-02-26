@@ -1,14 +1,12 @@
 import 'dart:async';
-import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:vibration/vibration.dart';
-import 'package:timezone/timezone.dart' as tz;
+import 'package:audioplayers/audioplayers.dart';
 import '../models/pomodoro_config.dart';
 import '../models/pomodoro_state.dart';
 import 'storage_service.dart';
 import 'localization_service.dart';
-import 'ad_service.dart';
 
 // Pomodoro timer service
 class PomodoroService extends ChangeNotifier {
@@ -19,11 +17,41 @@ class PomodoroService extends ChangeNotifier {
   PomodoroConfig _config;
   PomodoroState _state;
   Timer? _timer;
+  Timer? _notificationTimer;
+  Timer? _vibrationTimer;
+  bool _isAlarmPlaying = false;
+  final AudioPlayer _audioPlayer = AudioPlayer();
 
   PomodoroService(this._storage, this._localization, this._notifications)
       : _config = const PomodoroConfig(),
         _state = const PomodoroState() {
     _initNotifications().then((_) => _loadFromStorage());
+    _initAudioPlayer();
+  }
+
+  // Initialize audio player
+  Future<void> _initAudioPlayer() async {
+    try {
+      // Set audio context globally
+      await _audioPlayer.setAudioContext(
+        AudioContext(
+          iOS: AudioContextIOS(
+            category: AVAudioSessionCategory.playback,
+            options: {AVAudioSessionOptions.mixWithOthers},
+          ),
+          android: AudioContextAndroid(
+            isSpeakerphoneOn: false,
+            stayAwake: true,
+            contentType: AndroidContentType.sonification,
+            usageType: AndroidUsageType.alarm,
+            audioFocus: AndroidAudioFocus.gain,
+          ),
+        ),
+      );
+      print('AudioPlayer initialized successfully');
+    } catch (e) {
+      print('Error initializing AudioPlayer: $e');
+    }
   }
 
   PomodoroConfig get config => _config;
@@ -55,7 +83,62 @@ class PomodoroService extends ChangeNotifier {
     const androidSettings =
         AndroidInitializationSettings('@mipmap/ic_launcher');
     const initSettings = InitializationSettings(android: androidSettings);
-    await _notifications.initialize(initSettings);
+
+    await _notifications.initialize(
+      initSettings,
+      onDidReceiveNotificationResponse: _handleNotificationResponse,
+    );
+  }
+
+  // Handle notification actions
+  void _handleNotificationResponse(NotificationResponse response) {
+    if (response.actionId == 'stop_alarm') {
+      stopAlarm();
+    }
+  }
+
+  // Stop alarm (vibration) and proceed to next phase
+  Future<void> stopAlarmAndProceed() async {
+    if (_state.status != TimerStatus.alarm) {
+      print(
+          'stopAlarmAndProceed called but status is not alarm: ${_state.status}');
+      return;
+    }
+
+    print('Stopping alarm and proceeding to next phase...');
+    print(
+        'Current state before stop: seconds=${_state.secondsRemaining}, endTimestamp=${_state.endTimestampMillis}');
+
+    // Stop alarm
+    _isAlarmPlaying = false;
+    _vibrationTimer?.cancel();
+    await Vibration.cancel();
+    await _audioPlayer.stop();
+    await _notifications.cancel(1); // Cancel alarm notification
+    await _notifications.cancel(0); // Cancel progress notification
+
+    // Stop the negative timer completely
+    _timer?.cancel();
+    _timer = null;
+    _notificationTimer?.cancel();
+    _notificationTimer = null;
+
+    // Save completed mode before transitioning
+    final completedMode = _state.mode;
+
+    print('Completed mode: $completedMode, proceeding to next phase');
+
+    // Proceed to next phase - this will update state with new time
+    _proceedToNextPhase(completedMode);
+  }
+
+  // Stop alarm only (for notification action or other uses)
+  Future<void> stopAlarm() async {
+    _isAlarmPlaying = false;
+    _vibrationTimer?.cancel();
+    await Vibration.cancel();
+    await _audioPlayer.stop();
+    await _notifications.cancel(1); // Cancel alarm notification
   }
 
   // Load saved config and state
@@ -164,9 +247,14 @@ class PomodoroService extends ChangeNotifier {
       if (remaining > 0) {
         _state = _state.copyWith(secondsRemaining: remaining);
         notifyListeners();
-      } else {
+      } else if (remaining == 0) {
+        // Timer just reached zero - trigger alarm
         _state = _state.copyWith(secondsRemaining: 0, endTimestampMillis: null);
         _onTimerComplete();
+      } else {
+        // Timer is now negative - continue counting in negative
+        _state = _state.copyWith(secondsRemaining: remaining);
+        notifyListeners();
       }
     });
   }
@@ -181,29 +269,37 @@ class PomodoroService extends ChangeNotifier {
 
     final now = DateTime.now().millisecondsSinceEpoch;
     final diffMillis = endTimestamp - now;
+    // Allow negative values for overtime counting
     return (diffMillis / 1000).ceil();
   }
 
   // Handle timer completion
   Future<void> _onTimerComplete({bool notify = true}) async {
-    _timer?.cancel();
     _cancelScheduledNotification();
 
-    // Guardar el modo actual antes de cambiar
-    final completedMode = _state.mode;
+    // Set status to alarm and continue ticking in negative
+    _state = _state.copyWith(
+      status: TimerStatus.alarm,
+      endTimestampMillis:
+          DateTime.now().millisecondsSinceEpoch, // Start counting from 0
+    );
 
     // Play notification and vibration
     if (notify) {
-      await _showNotification();
-      await _playVibration();
+      await _showAlarmNotification();
+      await _playAlarmVibration();
+      await _playAlarmAudio();
     }
 
-    // Ir directamente a la siguiente fase (sin intersticiales por ahora)
-    _proceedToNextPhase(completedMode);
+    // Don't stop the timer - let it continue counting in negative
+    notifyListeners();
+    _saveState();
   }
 
   // Avanzar a la siguiente fase del pomodoro
   void _proceedToNextPhase(PomodoroMode completedMode) {
+    print('_proceedToNextPhase called with mode: $completedMode');
+
     // Determine next mode
     if (completedMode == PomodoroMode.focus) {
       // Increment pomodoros count
@@ -216,13 +312,17 @@ class PomodoroService extends ChangeNotifier {
           status: TimerStatus.idle,
           currentCycle: 1, // Reset cycle after long break
           secondsRemaining: _config.longBreakMinutes * 60,
+          endTimestampMillis: null, // Clear timestamp
         );
+        print('Moving to long break: ${_config.longBreakMinutes} minutes');
       } else {
         _state = _state.copyWith(
           mode: PomodoroMode.shortBreak,
           status: TimerStatus.idle,
           secondsRemaining: _config.shortBreakMinutes * 60,
+          endTimestampMillis: null, // Clear timestamp
         );
+        print('Moving to short break: ${_config.shortBreakMinutes} minutes');
       }
     } else {
       // After any break, go back to focus
@@ -234,9 +334,14 @@ class PomodoroService extends ChangeNotifier {
         status: TimerStatus.idle,
         currentCycle: nextCycle,
         secondsRemaining: _config.focusMinutes * 60,
+        endTimestampMillis: null, // Clear timestamp
       );
+      print(
+          'Moving to focus: ${_config.focusMinutes} minutes, cycle: $nextCycle');
     }
 
+    print(
+        'New state - seconds: ${_state.secondsRemaining}, status: ${_state.status}');
     _saveState();
     notifyListeners();
   }
@@ -265,80 +370,159 @@ class PomodoroService extends ChangeNotifier {
   }
 
   Future<void> _scheduleCompletionNotification(int endTimestampMillis) async {
-    final soundEnabled = _storage.getSoundEnabled();
-    final vibrationEnabled = _storage.getVibrationEnabled();
-    if (!soundEnabled && !vibrationEnabled) return;
-
     await _notifications.cancel(0);
+    _notificationTimer?.cancel();
 
     final content = _getNotificationContent(_state.mode);
+    final remainingSeconds = _calculateRemainingSeconds();
+    final minutes = remainingSeconds ~/ 60;
+    final secs = remainingSeconds % 60;
+    final timeString =
+        '${minutes.toString().padLeft(2, '0')}:${secs.toString().padLeft(2, '0')}';
 
     final androidDetails = AndroidNotificationDetails(
-      'pomodoro_channel',
-      'Pomodoro Timer',
-      channelDescription: 'Notifications for Pomodoro timer completion',
-      importance: Importance.high,
-      priority: Priority.high,
-      playSound: soundEnabled,
-      enableVibration: vibrationEnabled,
-      sound: soundEnabled
-          ? const RawResourceAndroidNotificationSound('notification')
-          : null,
-      vibrationPattern: vibrationEnabled
-          ? Int64List.fromList([0, 500, 200, 500, 200, 500, 200, 500])
-          : null,
+      'pomodoro_progress_channel',
+      'Pomodoro Timer Progress',
+      channelDescription: 'Shows ongoing Pomodoro timer',
+      importance: Importance.low,
+      priority: Priority.low,
+      playSound: false,
+      enableVibration: false,
+      ongoing: true,
+      showProgress: true,
+      maxProgress: _getDurationForMode(_state.mode),
+      progress: _getDurationForMode(_state.mode) - remainingSeconds,
+      onlyAlertOnce: true,
+      styleInformation: BigTextStyleInformation(
+        timeString,
+        contentTitle: content['title'],
+      ),
     );
 
-    final scheduleDate = tz.TZDateTime.fromMillisecondsSinceEpoch(
-      tz.local,
-      endTimestampMillis,
-    );
-
-    await _notifications.zonedSchedule(
+    await _notifications.show(
       0,
       content['title'],
-      content['body'],
-      scheduleDate,
+      timeString,
       NotificationDetails(android: androidDetails),
-      androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
     );
+
+    // Update notification every second with remaining time
+    _notificationTimer =
+        Timer.periodic(const Duration(seconds: 1), (timer) async {
+      final remaining = _calculateRemainingSeconds();
+      if (remaining > 0) {
+        final mins = remaining ~/ 60;
+        final secs = remaining % 60;
+        final time =
+            '${mins.toString().padLeft(2, '0')}:${secs.toString().padLeft(2, '0')}';
+
+        final details = AndroidNotificationDetails(
+          'pomodoro_progress_channel',
+          'Pomodoro Timer Progress',
+          channelDescription: 'Shows ongoing Pomodoro timer',
+          importance: Importance.low,
+          priority: Priority.low,
+          playSound: false,
+          enableVibration: false,
+          ongoing: true,
+          showProgress: true,
+          maxProgress: _getDurationForMode(_state.mode),
+          progress: _getDurationForMode(_state.mode) - remaining,
+          onlyAlertOnce: true,
+          styleInformation: BigTextStyleInformation(
+            time,
+            contentTitle: content['title'],
+          ),
+        );
+
+        await _notifications.show(
+          0,
+          content['title'],
+          time,
+          NotificationDetails(android: details),
+        );
+      }
+    });
   }
 
   void _cancelScheduledNotification() {
     _notifications.cancel(0);
+    _notificationTimer?.cancel();
   }
 
-  // Show notification
-  Future<void> _showNotification() async {
-    if (!_storage.getSoundEnabled()) return;
-
+  // Show alarm notification with action button
+  Future<void> _showAlarmNotification() async {
     final content = _getNotificationContent(_state.mode);
 
-    const androidDetails = AndroidNotificationDetails(
-      'pomodoro_channel',
-      'Pomodoro Timer',
-      channelDescription: 'Notifications for Pomodoro timer completion',
-      importance: Importance.high,
-      priority: Priority.high,
-      playSound: true,
-      enableVibration: false, // La vibración se maneja por separado
-      sound: RawResourceAndroidNotificationSound('notification'),
+    final androidDetails = AndroidNotificationDetails(
+      'pomodoro_alarm_channel',
+      'Pomodoro Alarm',
+      channelDescription: 'Alarm when Pomodoro timer completes',
+      importance: Importance.max,
+      priority: Priority.max,
+      playSound: false,
+      enableVibration:
+          false, // Vibration handled separately for continuous loop
+      category: AndroidNotificationCategory.alarm,
+      fullScreenIntent: true,
+      ongoing: true,
+      autoCancel: false,
+      actions: const [
+        AndroidNotificationAction(
+          'stop_alarm',
+          'Detener',
+          showsUserInterface: true,
+          cancelNotification: true,
+        ),
+      ],
     );
 
-    const details = NotificationDetails(android: androidDetails);
-    await _notifications.show(0, content['title'], content['body'], details);
+    final details = NotificationDetails(android: androidDetails);
+    await _notifications.show(1, content['title'], content['body'], details);
   }
 
-  // Play vibration
-  Future<void> _playVibration() async {
+  // Play alarm vibration
+  Future<void> _playAlarmVibration() async {
     if (!_storage.getVibrationEnabled()) return;
 
     final hasVibrator = await Vibration.hasVibrator();
-    if (hasVibrator == true) {
-      // Vibrar 5 veces: 500ms vibración, 200ms pausa
-      await Vibration.vibrate(
-        pattern: [0, 500, 200, 500, 200, 500, 200, 500, 200, 500],
-      );
+    if (hasVibrator != true) return;
+
+    _isAlarmPlaying = true;
+    // Vibrate continuously until stopped
+    _vibrationTimer =
+        Timer.periodic(const Duration(milliseconds: 1400), (_) async {
+      if (_isAlarmPlaying) {
+        await Vibration.vibrate(
+          pattern: [0, 500, 200, 500, 200, 500],
+          intensities: [0, 255, 0, 255, 0, 255],
+        );
+      }
+    });
+    // Start first vibration immediately
+    await Vibration.vibrate(
+      pattern: [0, 500, 200, 500, 200, 500],
+      intensities: [0, 255, 0, 255, 0, 255],
+    );
+  }
+
+  // Play alarm audio
+  Future<void> _playAlarmAudio() async {
+    try {
+      print('Attempting to play alarm audio...');
+      await _audioPlayer.stop(); // Stop any previous playback
+      await _audioPlayer.setReleaseMode(ReleaseMode.loop);
+      await _audioPlayer.setVolume(1.0);
+
+      await _audioPlayer.play(AssetSource('notification/notification.mp3'));
+      print('Audio playback started successfully');
+
+      // Verify playback state
+      final state = _audioPlayer.state;
+      print('AudioPlayer state after play: $state');
+    } catch (e, stackTrace) {
+      print('Error playing alarm audio: $e');
+      print('Stack trace: $stackTrace');
     }
   }
 
@@ -362,7 +546,11 @@ class PomodoroService extends ChangeNotifier {
   @override
   void dispose() {
     _timer?.cancel();
+    _notificationTimer?.cancel();
+    _vibrationTimer?.cancel();
     _cancelScheduledNotification();
+    stopAlarm();
+    _audioPlayer.dispose();
     super.dispose();
   }
 }

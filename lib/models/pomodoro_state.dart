@@ -9,6 +9,7 @@ enum TimerStatus {
   idle,
   running,
   paused,
+  alarm, // Timer finished and alarm is playing
 }
 
 class PomodoroState {

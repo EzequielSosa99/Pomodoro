@@ -67,12 +67,9 @@ android {
     buildTypes {
         release {
             signingConfig signingConfigs.release
-            ndk {
-                debugSymbolLevel 'NONE'
-            }
-            packagingOptions {
-                doNotStrip '**/*.so'
-            }
+            // Optimizaciones para reducir tamaño
+            shrinkResources true
+            minifyEnabled true
         }
     }
 }

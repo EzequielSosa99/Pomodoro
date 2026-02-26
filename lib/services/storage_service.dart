@@ -11,7 +11,6 @@ class StorageService extends ChangeNotifier {
   static const String _stateKey = 'pomodoro_state';
   static const String _tasksKey = 'tasks_';
   static const String _languageKey = 'language';
-  static const String _soundKey = 'sound_enabled';
   static const String _vibrationKey = 'vibration_enabled';
   static const String _themeKey = 'theme_mode';
   static const String _colorPaletteKey = 'color_palette';
@@ -82,12 +81,6 @@ class StorageService extends ChangeNotifier {
   }
 
   String? loadLanguage() => _prefs.getString(_languageKey);
-
-  Future<void> setSoundEnabled(bool enabled) async {
-    await _prefs.setBool(_soundKey, enabled);
-  }
-
-  bool getSoundEnabled() => _prefs.getBool(_soundKey) ?? true;
 
   Future<void> setVibrationEnabled(bool enabled) async {
     await _prefs.setBool(_vibrationKey, enabled);

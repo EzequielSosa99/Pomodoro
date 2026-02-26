@@ -26,6 +26,9 @@ dependencies:
   # Vibration
   vibration: ^3.0.0
   
+  # Audio player
+  audioplayers: ^6.1.0
+  
   # Calendar
   table_calendar: ^3.0.9
   
@@ -50,6 +53,7 @@ flutter:
   # i18n JSON files
   assets:
     - assets/l10n/
+    - assets/notification/
 
 flutter_launcher_icons:
   android: true

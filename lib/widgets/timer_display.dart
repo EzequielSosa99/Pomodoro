@@ -8,14 +8,18 @@ class TimerDisplay extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final minutes = seconds ~/ 60;
-    final secs = seconds % 60;
+    final isNegative = seconds < 0;
+    final absoluteSeconds = seconds.abs();
+    final minutes = absoluteSeconds ~/ 60;
+    final secs = absoluteSeconds % 60;
     final timeString =
-        '${minutes.toString().padLeft(2, '0')}:${secs.toString().padLeft(2, '0')}';
+        '${isNegative ? '-' : ''}${minutes.toString().padLeft(2, '0')}:${secs.toString().padLeft(2, '0')}';
 
     return Text(
       timeString,
-      style: Theme.of(context).textTheme.displayLarge,
+      style: Theme.of(context).textTheme.displayLarge?.copyWith(
+            color: isNegative ? Colors.red : null,
+          ),
     );
   }
 }

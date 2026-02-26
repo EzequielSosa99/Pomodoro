@@ -3,7 +3,6 @@ import 'package:provider/provider.dart';
 import '../models/pomodoro_state.dart';
 import '../services/pomodoro_service.dart';
 import '../services/localization_service.dart';
-import '../services/ad_service.dart';
 import '../widgets/timer_display.dart';
 import '../widgets/config_sheet.dart';
 
@@ -17,27 +16,11 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   @override
-  void initState() {
-    super.initState();
-    // Cargar banner del Home al iniciar la pantalla
-    Future.microtask(() => AdService.instance.loadHomeBanner());
-  }
-
-  @override
-  void dispose() {
-    // No necesitamos disponer aquí porque el servicio es singleton
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
     final pomodoroService = context.watch<PomodoroService>();
     final localization = context.watch<LocalizationService>();
     final state = pomodoroService.state;
     final config = pomodoroService.config;
-
-    // Escuchar cambios en AdService para actualizar cuando el banner esté listo
-    context.watch<AdService>();
 
     String getModeText() {
       switch (state.mode) {
@@ -244,43 +227,66 @@ class _HomeScreenState extends State<HomeScreen> {
                       ),
                       const SizedBox(height: 32),
 
-                      // Cycle indicator with progress
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 20, vertical: 12),
-                        decoration: BoxDecoration(
-                          color: Theme.of(context).colorScheme.surface,
-                          borderRadius: BorderRadius.circular(16),
-                          border: Border.all(
-                            color: Theme.of(context)
-                                .colorScheme
-                                .primary
-                                .withOpacity(0.2),
+                      // Cycle indicator with progress - clickable
+                      GestureDetector(
+                        onTap: () {
+                          showModalBottomSheet(
+                            context: context,
+                            isScrollControlled: true,
+                            backgroundColor: Colors.transparent,
+                            builder: (context) => Container(
+                              decoration: BoxDecoration(
+                                color:
+                                    Theme.of(context).scaffoldBackgroundColor,
+                                borderRadius: const BorderRadius.vertical(
+                                    top: Radius.circular(24)),
+                              ),
+                              child: ConfigSheet(
+                                initialConfig: config,
+                                onSave: (newConfig) {
+                                  pomodoroService.updateConfig(newConfig);
+                                },
+                              ),
+                            ),
+                          );
+                        },
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 20, vertical: 12),
+                          decoration: BoxDecoration(
+                            color: Theme.of(context).colorScheme.surface,
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(
+                              color: Theme.of(context)
+                                  .colorScheme
+                                  .primary
+                                  .withOpacity(0.2),
+                            ),
                           ),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(
-                              Icons.repeat_outlined,
-                              size: 20,
-                              color: Theme.of(context).colorScheme.primary,
-                            ),
-                            const SizedBox(width: 8),
-                            Text(
-                              localization.t('home.cycle', params: {
-                                'current': state.currentCycle.toString(),
-                                'total':
-                                    config.cyclesBeforeLongBreak.toString(),
-                              }),
-                              style: Theme.of(context)
-                                  .textTheme
-                                  .bodyMedium
-                                  ?.copyWith(
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                            ),
-                          ],
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                Icons.repeat_outlined,
+                                size: 20,
+                                color: Theme.of(context).colorScheme.primary,
+                              ),
+                              const SizedBox(width: 8),
+                              Text(
+                                localization.t('home.cycle', params: {
+                                  'current': state.currentCycle.toString(),
+                                  'total':
+                                      config.cyclesBeforeLongBreak.toString(),
+                                }),
+                                style: Theme.of(context)
+                                    .textTheme
+                                    .bodyMedium
+                                    ?.copyWith(
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                              ),
+                            ],
+                          ),
                         ),
                       ),
                       const SizedBox(height: 48),
@@ -292,9 +298,6 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                 ),
               ),
-
-              // AdMob Banner en la parte inferior
-              AdService.instance.getHomeBannerWidget(),
             ],
           ),
         ),
@@ -308,6 +311,45 @@ class _HomeScreenState extends State<HomeScreen> {
     final isIdle = state.status == TimerStatus.idle;
     final isRunning = state.status == TimerStatus.running;
     final isPaused = state.status == TimerStatus.paused;
+    final isAlarm = state.status == TimerStatus.alarm;
+
+    // If alarm is playing, show only stop alarm button
+    if (isAlarm) {
+      return SizedBox(
+        width: double.infinity,
+        child: ElevatedButton(
+          onPressed: () => service.stopAlarmAndProceed(),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Colors.red,
+            padding: const EdgeInsets.symmetric(vertical: 24),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(20),
+            ),
+            elevation: 8,
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(
+                Icons.stop_circle_outlined,
+                size: 32,
+                color: Colors.white,
+              ),
+              const SizedBox(width: 12),
+              Text(
+                localization.t('home.stopAlarm'),
+                style: const TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  letterSpacing: 0.5,
+                  color: Colors.white,
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
 
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,

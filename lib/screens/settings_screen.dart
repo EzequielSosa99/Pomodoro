@@ -105,21 +105,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
           _buildColorPaletteSelector(context, storage, localization),
           const SizedBox(height: 12),
 
-          // Sound
-          _buildSettingCard(
-            context,
-            title: localization.t('settings.sound'),
-            icon: Icons.volume_up,
-            child: Switch(
-              value: storage.getSoundEnabled(),
-              onChanged: (value) async {
-                await storage.setSoundEnabled(value);
-                setState(() {});
-              },
-            ),
-          ),
-          const SizedBox(height: 12),
-
           // Vibration
           _buildSettingCard(
             context,
